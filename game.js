@@ -1,8 +1,32 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 360;
-canvas.height = 640;
+// Base game dimensions
+const BASE_WIDTH = 360;
+const BASE_HEIGHT = 640;
+
+canvas.width = BASE_WIDTH;
+canvas.height = BASE_HEIGHT;
+
+// Function to resize canvas for mobile
+function resizeCanvas() {
+  const maxWidth = window.innerWidth;
+  const maxHeight = window.innerHeight;
+  
+  const scaleX = maxWidth / BASE_WIDTH;
+  const scaleY = maxHeight / BASE_HEIGHT;
+  const scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+  
+  canvas.style.width = (BASE_WIDTH * scale) + 'px';
+  canvas.style.height = (BASE_HEIGHT * scale) + 'px';
+}
+
+// Resize on load and window resize
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => {
+  setTimeout(resizeCanvas, 100);
+});
 
 let birdY = 300;
 let birdX = 50;
@@ -187,7 +211,8 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-document.addEventListener("click", () => {
+// Function to handle jump
+function handleJump() {
   if (!gameRunning) return;
   velocity = -8;
   const soundIndex = Math.floor(Math.random() * bounceSounds.length);
@@ -207,6 +232,13 @@ document.addEventListener("click", () => {
   
   sound.currentTime = 0;
   sound.play().catch(e => console.log("Sound play failed:", e));
+}
+
+// Support both click and touch events for mobile
+document.addEventListener("click", handleJump);
+document.addEventListener("touchstart", (e) => {
+  e.preventDefault(); // Prevent scrolling
+  handleJump();
 });
 
 function endGame() {
