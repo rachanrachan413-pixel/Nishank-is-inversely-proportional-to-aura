@@ -36,7 +36,9 @@ let gameRunning = false;
 let score = 0;
 let pillars = [];
 let pillarSpeed = 2;
-let pillarGap = 200;
+let basePillarSpeed = 2;
+let pillarGap = 280;
+let basePillarGap = 280;
 let pillarWidth = 60;
 let lastPillarTime = 0;
 let pillarInterval = 2000; // milliseconds
@@ -80,6 +82,25 @@ function stopAllSoundsExceptBounce1() {
   retrySound.currentTime = 0;
 }
 
+function updateDifficulty() {
+  if (score >= 20) {
+    // More harder at 20 points
+    pillarSpeed = basePillarSpeed * 1.5; // 50% faster
+    pillarGap = basePillarGap * 0.85; // 15% smaller gap
+    pillarInterval = 1700; // Pillars spawn more frequently
+  } else if (score >= 10) {
+    // Little harder at 10 points
+    pillarSpeed = basePillarSpeed * 1.25; // 25% faster
+    pillarGap = basePillarGap * 0.92; // 8% smaller gap
+    pillarInterval = 1850; // Pillars spawn slightly more frequently
+  } else {
+    // Normal difficulty
+    pillarSpeed = basePillarSpeed;
+    pillarGap = basePillarGap;
+    pillarInterval = 2000;
+  }
+}
+
 function startGame() {
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
@@ -93,6 +114,9 @@ function startGame() {
   pillars = [];
   lastPillarTime = Date.now();
   gameRunning = true;
+  
+  // Reset difficulty
+  updateDifficulty();
   
   bgm.loop = true;
   bgm.play().catch(e => console.log("Audio play failed:", e));
@@ -152,7 +176,8 @@ function loop() {
     );
 
     // Check collision - bird is 50x50, so radius is 25
-    const birdRadius = 25;
+    // Use a slightly smaller collision radius for more forgiving collisions
+    const birdRadius = 20;
     const birdLeft = birdX - birdRadius;
     const birdRight = birdX + birdRadius;
     const birdTop = birdY - birdRadius;
@@ -162,15 +187,24 @@ function loop() {
     const horizontalOverlap = birdRight > pillar.x && birdLeft < pillar.x + pillarWidth;
     
     if (horizontalOverlap) {
-      // Check if bird touches top pillar (bird bottom is below top pillar bottom)
-      const touchesTopPillar = birdBottom > 0 && birdTop < pillar.topHeight;
+      // The gap is the safe zone between top and bottom pillars
+      // Gap goes from y=pillar.topHeight to y=pillar.bottomY
+      // Bird is safe if it's completely within the gap
+      const birdInGap = birdTop >= pillar.topHeight && birdBottom <= pillar.bottomY;
       
-      // Check if bird touches bottom pillar (bird top is above bottom pillar top)
-      const touchesBottomPillar = birdTop < canvas.height && birdBottom > pillar.bottomY;
-      
-      if (touchesTopPillar || touchesBottomPillar) {
-        endGame();
-        return;
+      // If bird is NOT in the gap, it must be touching a pillar
+      if (!birdInGap) {
+        // Check if bird is touching top pillar (y=0 to y=pillar.topHeight)
+        const touchingTop = birdBottom > 0 && birdTop < pillar.topHeight;
+        
+        // Check if bird is touching bottom pillar (y=pillar.bottomY to y=canvas.height)
+        const touchingBottom = birdTop < canvas.height && birdBottom > pillar.bottomY;
+        
+        // Only end game if bird is actually touching a pillar
+        if (touchingTop || touchingBottom) {
+          endGame();
+          return;
+        }
       }
     }
 
@@ -178,6 +212,7 @@ function loop() {
     if (!pillar.passed && birdX > pillar.x + pillarWidth) {
       pillar.passed = true;
       score++;
+      updateDifficulty(); // Update difficulty when score increases
     }
 
     // Remove off-screen pillars
@@ -260,5 +295,6 @@ function restartGame() {
   pillars = [];
   lastPillarTime = Date.now();
   document.getElementById("retry").style.display = "none";
+  // Reset difficulty will be handled in startGame()
   startGame();
 }
